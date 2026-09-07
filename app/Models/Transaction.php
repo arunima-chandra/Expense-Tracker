@@ -12,4 +12,30 @@ class Transaction extends Model
     {
         return $this->belongsTo(Account::class);
     }
+
+    /**
+     * Scope query to transactions belonging to a specific user through accounts.
+     */
+    public function scopeForUser($query, int $userId)
+    {
+        return $query->whereHas('account', function ($q) use ($userId) {
+            $q->where('user_id', $userId);
+        });
+    }
+
+    /**
+     * Scope query to transactions in a given year.
+     */
+    public function scopeInYear($query, int $year)
+    {
+        return $query->whereYear('date', $year);
+    }
+
+    /**
+     * Scope query to transactions in a given year and month.
+     */
+    public function scopeInMonth($query, int $year, int $month)
+    {
+        return $query->whereYear('date', $year)->whereMonth('date', $month);
+    }
 }

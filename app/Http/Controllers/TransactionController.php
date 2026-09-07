@@ -5,12 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\Account;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class TransactionController extends Controller
 {
     public function index(Request $request, Account $account)
     {
         if ($account->user_id !== $request->user()->id) {
+            Log::warning('Unauthorized transaction list access attempt', [
+                'user_id' => $request->user()->id,
+                'account_id' => $account->id,
+            ]);
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -20,6 +25,10 @@ class TransactionController extends Controller
     public function store(Request $request, Account $account)
     {
         if ($account->user_id !== $request->user()->id) {
+            Log::warning('Unauthorized transaction create attempt', [
+                'user_id' => $request->user()->id,
+                'account_id' => $account->id,
+            ]);
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -33,16 +42,32 @@ class TransactionController extends Controller
 
         $transaction = $account->transactions()->create($validated);
 
+        Log::info('Transaction added', [
+            'transaction_id' => $transaction->id,
+            'account_id' => $account->id,
+            'type' => $transaction->type,
+            'amount' => $transaction->amount,
+        ]);
+
         return response()->json($transaction, 201);
     }
 
     public function destroy(Request $request, Account $account, Transaction $transaction)
     {
         if ($account->user_id !== $request->user()->id) {
+            Log::warning('Unauthorized transaction delete attempt', [
+                'user_id' => $request->user()->id,
+                'account_id' => $account->id,
+            ]);
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         $transaction->delete();
+
+        Log::info('Transaction deleted', [
+            'transaction_id' => $transaction->id,
+            'account_id' => $account->id,
+        ]);
 
         return response()->json(null, 204);
     }
@@ -50,6 +75,10 @@ class TransactionController extends Controller
     public function balance(Request $request, Account $account)
     {
         if ($account->user_id !== $request->user()->id) {
+            Log::warning('Unauthorized balance access attempt', [
+                'user_id' => $request->user()->id,
+                'account_id' => $account->id,
+            ]);
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

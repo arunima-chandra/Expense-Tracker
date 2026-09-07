@@ -21,6 +21,11 @@ class User extends Authenticatable
         return $this->hasMany(Account::class);
     }
 
+    public function importantDates()
+    {
+        return $this->hasMany(ImportantDate::class);
+    }
+
     protected function casts(): array
     {
         return [
