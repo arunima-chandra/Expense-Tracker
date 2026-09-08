@@ -110,8 +110,12 @@
             <i class="bi bi-wallet2 gradient-text"></i> Expense Tracker
         </a>
         <div>
-            <a href="/login" class="btn btn-outline-glow btn-sm me-2">Login</a>
-            <a href="/register" class="btn btn-glow btn-sm">Register</a>
+            @auth
+                <a href="/dashboard" class="btn btn-glow btn-sm">Dashboard <i class="bi bi-arrow-right"></i></a>
+            @else
+                <a href="/login" class="btn btn-outline-glow btn-sm me-2">Login</a>
+                <a href="/register" class="btn btn-glow btn-sm">Register</a>
+            @endauth
         </div>
     </nav>
 
