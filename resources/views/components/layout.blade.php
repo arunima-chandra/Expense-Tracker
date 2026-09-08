@@ -9,6 +9,11 @@
     <script src="https://cdn.jsdelivr.net/npm/luxon@3.5.0/build/global/luxon.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1/dist/chartjs-chart-financial.min.js"></script>
+    <style>
+        body {
+            font-family: Calibri, sans-serif;
+        }
+    </style>
 </head>
 <body {{ $attributes->merge(['class' => 'bg-gray-950 text-gray-100 min-h-screen']) }}>
     <nav class="bg-gray-900 border-b border-gray-800 text-white p-4 sticky top-0 z-50 backdrop-blur bg-gray-900/90">
