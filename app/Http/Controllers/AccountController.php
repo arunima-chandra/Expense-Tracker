@@ -2,83 +2,55 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreAccountRequest;
+use App\Http\Requests\UpdateAccountRequest;
+use App\Http\Resources\AccountResource;
 use App\Models\Account;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use App\Events\AccountCreated;
 
 class AccountController extends Controller
 {
     public function index(Request $request)
-    {
-        return $request->user()->accounts;
-    }
+{
+    return AccountResource::collection($request->user()->accounts);
+}
 
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string',
-            'type' => 'required|string',
-        ]);
+    public function store(StoreAccountRequest $request)
+{
+    $account = $request->user()->accounts()->create($request->validated());
 
-        $account = $request->user()->accounts()->create($validated);
+    event(new AccountCreated($account));
 
-        Log::info('Account created', [
-            'account_id' => $account->id,
-            'user_id' => $request->user()->id,
-        ]);
-
-        return response()->json($account, 201);
-    }
+    return response()->json($account, 201);
+}
 
     public function show(Request $request, Account $account)
-    {
-        if ($account->user_id !== $request->user()->id) {
-            Log::warning('Unauthorized account access attempt', [
-                'user_id' => $request->user()->id,
-                'account_id' => $account->id,
-            ]);
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+{
+    $this->authorize('view', $account);
 
-        return $account;
-    }
+    return new AccountResource($account);
+}
 
-    public function update(Request $request, Account $account)
-    {
-        if ($account->user_id !== $request->user()->id) {
-            Log::warning('Unauthorized account update attempt', [
-                'user_id' => $request->user()->id,
-                'account_id' => $account->id,
-            ]);
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
 
-        $validated = $request->validate([
-            'name' => 'sometimes|string',
-            'type' => 'sometimes|string',
-        ]);
+    public function update(UpdateAccountRequest $request, Account $account)
+{
+    $account->update($request->validated());
 
-        $account->update($validated);
+    Log::info('Account updated', ['account_id' => $account->id]);
 
-        Log::info('Account updated', ['account_id' => $account->id]);
-
-        return $account;
-    }
+    return $account;
+}
 
     public function destroy(Request $request, Account $account)
-    {
-        if ($account->user_id !== $request->user()->id) {
-            Log::warning('Unauthorized account delete attempt', [
-                'user_id' => $request->user()->id,
-                'account_id' => $account->id,
-            ]);
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+{
+    $this->authorize('delete', $account);
 
-        $account->delete();
+    $account->delete();
 
-        Log::info('Account deleted', ['account_id' => $account->id]);
+    Log::info('Account deleted', ['account_id' => $account->id]);
 
-        return response()->json(null, 204);
-    }
+    return response()->json(null, 204);
+}
 }

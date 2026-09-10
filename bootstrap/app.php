@@ -13,7 +13,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'mode.selected' => \App\Http\Middleware\EnsureModeSelected::class,
+            'company.admin' => \App\Http\Middleware\EnsureCompanyAdmin::class,
+        ]);
+        $middleware->web(append: [
+            \App\Http\Middleware\EnsureModeSelected::class,
+        ]);
     })
     ->withExceptions(function ($exceptions) {
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {

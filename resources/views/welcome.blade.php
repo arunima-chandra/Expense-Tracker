@@ -100,6 +100,41 @@
             flex-shrink: 0;
         }
         .navbar-brand { font-weight: 700; letter-spacing: -0.5px; color: #e0e0e0 !important; }
+        .mode-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+        }
+        .mode-badge.personal { background: rgba(46,213,115,0.15); color: #2ed573; }
+        .mode-badge.company { background: rgba(255,193,7,0.15); color: #ffc107; }
+        .mode-card {
+            background: #111318;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 40px;
+            height: 100%;
+            transition: 0.3s;
+        }
+        .mode-card:hover { border-color: rgba(46,213,115,0.4); transform: translateY(-4px); }
+        .mode-card ul { list-style: none; padding-left: 0; }
+        .mode-card ul li {
+            padding-left: 28px;
+            position: relative;
+            margin-bottom: 14px;
+            color: #c0c0c0;
+        }
+        .mode-card ul li::before {
+            content: "\F633";
+            font-family: "bootstrap-icons";
+            position: absolute;
+            left: 0;
+            color: #2ed573;
+        }
     </style>
 </head>
 <body>
@@ -132,9 +167,9 @@
                         <span class="gradient-text">Never miss a bill again.</span>
                     </h1>
                     <p class="fs-5 text-white-50 mb-4" style="max-width: 560px;">
-                        Expense Tracker is a simple, personal finance app that logs your income and expenses,
-                        reminds you before your bills are due, and shows you exactly where your money goes —
-                        every month, every year.
+                        Expense Tracker logs your income and expenses, reminds you before your bills are due,
+                        and shows you exactly where your money goes — every month, every year. Use it just
+                        for yourself, or set up your whole company with role-based access.
                     </p>
                     <div class="d-flex gap-3">
                         <a href="/register" class="btn btn-glow">Get Started Free <i class="bi bi-arrow-right"></i></a>
@@ -200,6 +235,56 @@
                             Your data is yours alone — every account and transaction is locked to your
                             login, with every access attempt logged for security.
                         </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Two Modes -->
+    <section class="py-5" style="padding: 90px 0;">
+        <div class="container">
+            <div class="text-center mb-5">
+                <span class="badge-soft mb-3 d-inline-block">One App, Two Ways to Use It</span>
+                <h2 class="fw-bold">For your own money. Or your whole team's.</h2>
+                <p class="text-white-50" style="max-width: 620px; margin: 0 auto;">
+                    Whether you're tracking your personal budget or managing finances
+                    across a company with multiple people, Expense Tracker adapts to fit.
+                </p>
+            </div>
+            <div class="row g-4">
+                <!-- Personal -->
+                <div class="col-lg-6">
+                    <div class="mode-card">
+                        <span class="mode-badge personal">Personal Use</span>
+                        <h4 class="fw-bold mb-3">Just for you</h4>
+                        <p class="text-white-50">
+                            Pick this if you're tracking your own income and expenses —
+                            no one else needs access, and nothing is shared.
+                        </p>
+                        <ul>
+                            <li>Your accounts and transactions stay completely private</li>
+                            <li>Set your own bill reminders and due dates</li>
+                            <li>View your own monthly and yearly reports</li>
+                            <li>Nothing to set up — pick this at signup and you're in</li>
+                        </ul>
+                    </div>
+                </div>
+                <!-- Company -->
+                <div class="col-lg-6">
+                    <div class="mode-card">
+                        <span class="mode-badge company">Company Use</span>
+                        <h4 class="fw-bold mb-3">For your whole team</h4>
+                        <p class="text-white-50">
+                            Create a company and invite your team with a simple code —
+                            or join a company someone else already set up.
+                        </p>
+                        <ul>
+                            <li><strong>Admins</strong> get a shareable invite code and a company-wide dashboard showing every employee's transactions and totals</li>
+                            <li><strong>Employees</strong> get their own private dashboard, scoped only to what they add</li>
+                            <li>Admins can regenerate the invite code anytime, or remove an employee from the company</li>
+                            <li>Switch between Admin oversight and individual tracking without extra tools</li>
+                        </ul>
                     </div>
                 </div>
             </div>

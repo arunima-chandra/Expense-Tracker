@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\OnboardingController;
 use App\Models\Account;
 use App\Models\ImportantDate;
 use App\Models\Transaction;
@@ -35,11 +37,12 @@ Route::post('/register', function (Request $request) {
         'name' => $validated['name'],
         'email' => $validated['email'],
         'password' => Hash::make($validated['password']),
+        'mode' => null, // Explicitly null to trigger onboarding mode selection
     ]);
 
     Auth::login($user);
 
-    return redirect('/dashboard');
+    return redirect('/onboarding');
 });
 
 // Handle login
@@ -50,6 +53,10 @@ Route::post('/login', function (Request $request) {
     ]);
 
     if (Auth::attempt($credentials)) {
+        $user = Auth::user();
+        if (empty($user->mode)) {
+            return redirect('/onboarding');
+        }
         return redirect('/dashboard');
     }
 
@@ -64,11 +71,138 @@ Route::post('/logout', function (Request $request) {
 
 // Protected routes (must be logged in)
 Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('dashboard');
+    // Mode selection & onboarding routes
+    Route::get('/onboarding', [OnboardingController::class, 'show'])->name('onboarding');
+    Route::post('/onboarding/personal', [OnboardingController::class, 'selectPersonal']);
+    Route::post('/onboarding/company/create', [OnboardingController::class, 'createCompany']);
+    Route::post('/onboarding/company/join', [OnboardingController::class, 'joinCompany']);
+
+    // Company Admin only routes
+    Route::middleware('company.admin')->group(function () {
+        Route::post('/company/invite-code/regenerate', [CompanyController::class, 'regenerateInviteCode']);
+        Route::delete('/company/members/{user}', [CompanyController::class, 'removeMember']);
     });
 
+    // Dashboard View
+    Route::get('/dashboard', function () {
+        $user = Auth::user();
+        $company = $user->company;
+        $members = [];
+
+        if ($user->isCompanyAdmin() && $company) {
+            $members = User::where('company_id', $company->id)
+                ->with(['accounts.transactions'])
+                ->get();
+        }
+
+        return view('dashboard', compact('user', 'company', 'members'));
+    });
+
+    // Dashboard JSON Data API
     Route::get('/dashboard-data', function () {
+        $user = Auth::user();
+
+        // Company Admin view: Aggregated company data & employee metrics
+        if ($user->isCompanyAdmin() && $user->company_id) {
+            $companyUsers = User::where('company_id', $user->company_id)
+                ->with(['accounts.transactions' => function ($query) {
+                    $query->orderBy('date', 'asc')->orderBy('id', 'asc');
+                }])
+                ->get();
+
+            $employeeStats = $companyUsers->map(function ($member) {
+                $totalIncome = 0;
+                $totalExpense = 0;
+                $txCount = 0;
+
+                foreach ($member->accounts as $acc) {
+                    $txCount += $acc->transactions->count();
+                    $totalIncome += (float) $acc->transactions->where('type', 'income')->sum('amount');
+                    $totalExpense += (float) $acc->transactions->where('type', 'expense')->sum('amount');
+                }
+
+                return [
+                    'id' => $member->id,
+                    'name' => $member->name,
+                    'email' => $member->email,
+                    'role' => $member->role,
+                    'is_self' => $member->id === Auth::id(),
+                    'accounts_count' => $member->accounts->count(),
+                    'transactions_count' => $txCount,
+                    'total_income' => round($totalIncome, 2),
+                    'total_expense' => round($totalExpense, 2),
+                    'net_balance' => round($totalIncome - $totalExpense, 2),
+                ];
+            });
+
+            // Company-wide accounts
+            $accounts = Account::whereIn('user_id', $companyUsers->pluck('id'))
+                ->with(['user:id,name,email', 'transactions' => function ($query) {
+                    $query->orderBy('date', 'asc')->orderBy('id', 'asc');
+                }])
+                ->get()
+                ->map(function ($account) {
+                    $running = 0;
+                    $history = [];
+
+                    foreach ($account->transactions as $tx) {
+                        if ($tx->type === 'income') {
+                            $running += (float) $tx->amount;
+                        } else {
+                            $running -= (float) $tx->amount;
+                        }
+                        $history[] = [
+                            'id' => $tx->id,
+                            'date' => $tx->date,
+                            'type' => $tx->type,
+                            'category' => $tx->category,
+                            'amount' => (float) $tx->amount,
+                            'balance' => round($running, 2),
+                        ];
+                    }
+
+                    return [
+                        'id' => $account->id,
+                        'name' => $account->name . ($account->user ? " ({$account->user->name})" : ''),
+                        'raw_name' => $account->name,
+                        'owner_name' => $account->user->name ?? 'Unknown',
+                        'type' => $account->type,
+                        'current_balance' => round($running, 2),
+                        'balance_history' => $history,
+                        'transactions' => $account->transactions,
+                    ];
+                });
+
+            $totalBalance = $accounts->sum('current_balance');
+            $totalCompanyIncome = 0;
+            $totalCompanyExpense = 0;
+
+            foreach ($accounts as $acc) {
+                foreach ($acc['transactions'] as $t) {
+                    if ($t->type === 'income') {
+                        $totalCompanyIncome += (float) $t->amount;
+                    } else {
+                        $totalCompanyExpense += (float) $t->amount;
+                    }
+                }
+            }
+
+            return response()->json([
+                'mode' => 'company_admin',
+                'company' => [
+                    'id' => $user->company->id ?? null,
+                    'name' => $user->company->name ?? 'Company',
+                    'invite_code' => $user->company->invite_code ?? '',
+                ],
+                'accounts' => $accounts,
+                'total_balance' => round($totalBalance, 2),
+                'total_income' => round($totalCompanyIncome, 2),
+                'total_expense' => round($totalCompanyExpense, 2),
+                'employees' => $employeeStats,
+            ]);
+        }
+
+        // Personal or Employee mode: scoped only to own accounts
         $accounts = Auth::user()->accounts()
             ->with(['transactions' => function ($query) {
                 $query->orderBy('date', 'asc')->orderBy('id', 'asc');
@@ -107,6 +241,11 @@ Route::middleware('auth')->group(function () {
         $totalBalance = $accounts->sum('current_balance');
 
         return response()->json([
+            'mode' => $user->isCompanyEmployee() ? 'company_employee' : 'personal',
+            'company' => $user->company ? [
+                'id' => $user->company->id,
+                'name' => $user->company->name,
+            ] : null,
             'accounts' => $accounts,
             'total_balance' => round($totalBalance, 2),
         ]);
@@ -200,9 +339,14 @@ Route::middleware('auth')->group(function () {
         return redirect('/reports/' . date('Y') . '/' . date('n'));
     });
 
-    Route::get('/reports/{year}', function (int $year) {
-        $userId = Auth::id();
-        $transactions = Transaction::forUser($userId)->inYear($year)->get();
+    Route::get('/reports/{year}', function (Request $request, int $year) {
+        $user = Auth::user();
+
+        if ($user->isCompanyAdmin() && $user->company_id) {
+            $transactions = Transaction::forCompany($user->company_id)->inYear($year)->get();
+        } else {
+            $transactions = Transaction::forUser($user->id)->inYear($year)->get();
+        }
 
         $monthsData = [];
         $totalIncome = 0;
@@ -235,14 +379,24 @@ Route::middleware('auth')->group(function () {
         return view('reports.yearly', compact('year', 'monthsData', 'totalIncome', 'totalExpense', 'netBalance'));
     });
 
-    Route::get('/reports/{year}/{month}', function (int $year, int $month) {
-        $userId = Auth::id();
-        $transactions = Transaction::forUser($userId)
-            ->inMonth($year, $month)
-            ->with('account')
-            ->orderBy('date', 'desc')
-            ->orderBy('id', 'desc')
-            ->get();
+    Route::get('/reports/{year}/{month}', function (Request $request, int $year, int $month) {
+        $user = Auth::user();
+
+        if ($user->isCompanyAdmin() && $user->company_id) {
+            $transactions = Transaction::forCompany($user->company_id)
+                ->inMonth($year, $month)
+                ->with(['account.user'])
+                ->orderBy('date', 'desc')
+                ->orderBy('id', 'desc')
+                ->get();
+        } else {
+            $transactions = Transaction::forUser($user->id)
+                ->inMonth($year, $month)
+                ->with('account')
+                ->orderBy('date', 'desc')
+                ->orderBy('id', 'desc')
+                ->get();
+        }
 
         $totalIncome = (float) $transactions->where('type', 'income')->sum('amount');
         $totalExpense = (float) $transactions->where('type', 'expense')->sum('amount');

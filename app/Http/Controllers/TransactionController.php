@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreTransactionRequest;
+use App\Http\Resources\TransactionResource;
 use App\Models\Account;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
@@ -11,36 +13,16 @@ class TransactionController extends Controller
 {
     public function index(Request $request, Account $account)
     {
-        if ($account->user_id !== $request->user()->id) {
-            Log::warning('Unauthorized transaction list access attempt', [
-                'user_id' => $request->user()->id,
-                'account_id' => $account->id,
-            ]);
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        $this->authorize('view', $account);
 
-        return $account->transactions;
+        return TransactionResource::collection($account->transactions);
     }
 
-    public function store(Request $request, Account $account)
+    public function store(StoreTransactionRequest $request, Account $account)
     {
-        if ($account->user_id !== $request->user()->id) {
-            Log::warning('Unauthorized transaction create attempt', [
-                'user_id' => $request->user()->id,
-                'account_id' => $account->id,
-            ]);
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        $this->authorize('view', $account);
 
-        $validated = $request->validate([
-            'type' => 'required|in:income,expense',
-            'amount' => 'required|numeric|min:0.01',
-            'category' => 'nullable|string',
-            'description' => 'nullable|string',
-            'date' => 'required|date',
-        ]);
-
-        $transaction = $account->transactions()->create($validated);
+        $transaction = $account->transactions()->create($request->validated());
 
         Log::info('Transaction added', [
             'transaction_id' => $transaction->id,
@@ -49,18 +31,12 @@ class TransactionController extends Controller
             'amount' => $transaction->amount,
         ]);
 
-        return response()->json($transaction, 201);
+        return new TransactionResource($transaction);
     }
 
     public function destroy(Request $request, Account $account, Transaction $transaction)
     {
-        if ($account->user_id !== $request->user()->id) {
-            Log::warning('Unauthorized transaction delete attempt', [
-                'user_id' => $request->user()->id,
-                'account_id' => $account->id,
-            ]);
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        $this->authorize('delete', $transaction);
 
         $transaction->delete();
 
@@ -74,13 +50,7 @@ class TransactionController extends Controller
 
     public function balance(Request $request, Account $account)
     {
-        if ($account->user_id !== $request->user()->id) {
-            Log::warning('Unauthorized balance access attempt', [
-                'user_id' => $request->user()->id,
-                'account_id' => $account->id,
-            ]);
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        $this->authorize('view', $account);
 
         $income = $account->transactions()->where('type', 'income')->sum('amount');
         $expense = $account->transactions()->where('type', 'expense')->sum('amount');

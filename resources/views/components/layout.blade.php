@@ -17,14 +17,14 @@
 </head>
 <body {{ $attributes->merge(['class' => 'bg-gray-950 text-gray-100 min-h-screen']) }}>
     <nav class="bg-gray-900 border-b border-gray-800 text-white p-4 sticky top-0 z-50 backdrop-blur bg-gray-900/90">
-        <div class="max-w-5xl mx-auto flex justify-between items-center">
+        <div class="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-4">
             <div class="flex items-center gap-6">
                 <a href="/dashboard" class="text-xl font-bold font-mono tracking-wide text-gray-100 flex items-center gap-2 hover:text-green-400 transition">
                     <span class="text-green-400 font-extrabold text-2xl">₹</span>
                     <span>Expense Tracker</span>
                 </a>
                 @auth
-                    <div class="flex items-center gap-2 text-sm font-medium">
+                    <div class="flex items-center gap-2 text-sm font-medium flex-wrap">
                         <a href="/" class="px-3 py-1.5 rounded transition flex items-center gap-1.5 {{ (request()->is('/') || request()->path() === '/') ? 'bg-gray-800 text-green-400 font-semibold border border-gray-700' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/60' }}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
@@ -60,7 +60,30 @@
             </div>
             @auth
                 <div class="flex items-center gap-3">
-                    <span class="text-xs text-gray-400 font-mono hidden sm:inline">{{ Auth::user()->name }}</span>
+                    <!-- Mode / Role Badge -->
+                    @if(Auth::user()->isCompanyAdmin())
+                        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-blue-950 text-blue-300 border border-blue-800" title="Company Admin">
+                            <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+                            <span>🏢 {{ Auth::user()->company->name ?? 'Company' }}</span>
+                            <span class="bg-blue-800 text-blue-100 text-[10px] px-1.5 py-0.5 rounded font-bold">ADMIN</span>
+                        </div>
+                    @elseif(Auth::user()->isCompanyEmployee())
+                        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-indigo-950 text-indigo-300 border border-indigo-800" title="Company Employee">
+                            <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                            <span>🏢 {{ Auth::user()->company->name ?? 'Company' }}</span>
+                            <span class="bg-indigo-800 text-indigo-100 text-[10px] px-1.5 py-0.5 rounded font-bold">STAFF</span>
+                        </div>
+                    @else
+                        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-gray-800 text-gray-300 border border-gray-700" title="Personal Mode">
+                            <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                            <span>👤 Personal</span>
+                        </div>
+                    @endif
+
+                    <a href="/onboarding" class="text-xs text-gray-400 hover:text-gray-200 border border-gray-700 hover:bg-gray-800 px-2.5 py-1.5 rounded transition" title="Switch Mode">
+                        Switch Mode
+                    </a>
+
                     <form method="POST" action="/logout">
                         @csrf
                         <button type="submit" class="bg-gray-800 text-gray-300 hover:text-white hover:bg-gray-700 border border-gray-700 px-3 py-1.5 rounded text-xs sm:text-sm transition">Logout</button>
@@ -71,8 +94,33 @@
     </nav>
 
     @auth
+        <!-- Session Flash Message Banner -->
+        @if(session('success'))
+            <div class="max-w-6xl mx-auto px-4 mt-4">
+                <div class="bg-green-950/80 border border-green-700 text-green-300 px-4 py-3 rounded-xl flex items-center justify-between gap-3 text-sm shadow-lg">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        <span>{{ session('success') }}</span>
+                    </div>
+                    <button onclick="this.parentElement.remove()" class="text-green-400 hover:text-green-200">&times;</button>
+                </div>
+            </div>
+        @endif
+
+        @if($errors->has('member_error'))
+            <div class="max-w-6xl mx-auto px-4 mt-4">
+                <div class="bg-red-950/80 border border-red-700 text-red-300 px-4 py-3 rounded-xl flex items-center justify-between gap-3 text-sm shadow-lg">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span>{{ $errors->first('member_error') }}</span>
+                    </div>
+                    <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-200">&times;</button>
+                </div>
+            </div>
+        @endif
+
         <!-- Alarm / Due Date Notification Modal Banner -->
-        <div id="alarm-banner-container" class="max-w-5xl mx-auto px-4 mt-3 hidden"></div>
+        <div id="alarm-banner-container" class="max-w-6xl mx-auto px-4 mt-3 hidden"></div>
         <script>
             document.addEventListener('DOMContentLoaded', async function () {
                 try {
@@ -117,7 +165,7 @@
         </script>
     @endauth
 
-    <main class="max-w-5xl mx-auto mt-6 p-4">
+    <main class="max-w-6xl mx-auto mt-6 p-4">
         {{ $slot }}
     </main>
 </body>

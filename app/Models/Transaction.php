@@ -24,6 +24,16 @@ class Transaction extends Model
     }
 
     /**
+     * Scope query to transactions belonging to all users of a specific company.
+     */
+    public function scopeForCompany($query, int $companyId)
+    {
+        return $query->whereHas('account.user', function ($q) use ($companyId) {
+            $q->where('company_id', $companyId);
+        });
+    }
+
+    /**
      * Scope query to transactions in a given year.
      */
     public function scopeInYear($query, int $year)
